@@ -1,34 +1,41 @@
+from collections import Counter
+from pathlib import Path
+import re
+
 import requests
 
-def get_text(url):
-    response = requests.get(url)
+
+WORD_RE = re.compile(r"[a-zA-Z']+")
+
+
+def get_text(url: str) -> str:
+    response = requests.get(url, timeout=10)
+    response.raise_for_status()
     return response.text
 
-def count_word_frequencies(url, word):
-    text = get_text(url)
-    words = text.split()
-    count = 0
-    for w in words:
-        if w == word:
-            count += 1
-    return count
 
-def main():
-    words_file = "words.txt"
+def load_words_to_count(words_file: str) -> list[str]:
+    with open(words_file, "r", encoding="utf-8") as file:
+        return [line.strip().lower() for line in file if line.strip()]
+
+
+def tokenize(text: str) -> list[str]:
+    return [token.lower() for token in WORD_RE.findall(text)]
+
+
+def count_word_frequencies(url: str, words_to_count: list[str]) -> dict[str, int]:
+    tokens = tokenize(get_text(url))
+    counters = Counter(tokens)
+    return {word: counters[word] for word in words_to_count}
+
+
+def main() -> None:
+    words_file = str(Path(__file__).with_name("words.txt"))
     url = "https://eng.mipt.ru/why-mipt/"
-
-    words_to_count = []
-    with open(words_file, 'r') as file:
-        for line in file:
-            word = line.strip()
-            if word:
-                words_to_count.append(word)
-
-    frequencies = {}
-    for word in words_to_count:
-        frequencies[word] = count_word_frequencies(url, word)
-    
+    words_to_count = load_words_to_count(words_file)
+    frequencies = count_word_frequencies(url, words_to_count)
     print(frequencies)
+
 
 if __name__ == "__main__":
     main()
